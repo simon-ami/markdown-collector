@@ -1,0 +1,134 @@
+name: Firefox add-on CI/CD
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Test and package
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.release.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Determine whether this is a release
+        id: release
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          publish=false
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            publish=true
+          elif [[ "$EVENT_NAME" == "push" ]]; then
+            current="$(jq -r '.version' manifest.json)"
+            if git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+              previous="$(git show "${BEFORE_SHA}:manifest.json" | jq -r '.version')"
+              [[ "$current" == "$previous" ]] || publish=true
+            fi
+          fi
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test -- --runInBand
+
+      - name: Install Mozilla web-ext
+        run: npm install --global web-ext@10.5.0
+
+      - name: Build Firefox extension ZIP
+        run: bash zip.sh
+
+      - name: Lint Firefox extension
+        run: web-ext lint --source-dir dist/extension
+
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: markdown-collector-zip
+          path: dist/markdown-collector-*.zip
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Submit to Mozilla Add-ons
+    needs: build
+    if: needs.build.outputs.publish == 'true' && github.repository == 'simon-ami/markdown-collector' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: markdown-collector-amo-publish
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Check AMO credentials
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          if [[ -z "$AMO_JWT_ISSUER" || -z "$AMO_JWT_SECRET" ]]; then
+            echo "Add AMO_JWT_ISSUER and AMO_JWT_SECRET under GitHub Actions repository secrets." >&2
+            exit 1
+          fi
+
+      - name: Resolve existing Mozilla add-on ID
+        id: amo
+        run: |
+          # Use the existing public listing's GUID to update it, not create
+          # another add-on under a new ID.
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 \
+            'https://addons.mozilla.org/api/v5/addons/addon/markdown-collector/' \
+            -o amo-addon.json
+          id="$(jq -er '.guid | select(type == "string" and length > 0)' amo-addon.json)"
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
+      - name: Package with the existing Gecko add-on ID
+        env:
+          AMO_ADDON_ID: ${{ steps.amo.outputs.id }}
+        run: |
+          bash zip.sh
+          unzip -p dist/markdown-collector-*.zip manifest.json | jq -e \
+            --arg id "$AMO_ADDON_ID" '.browser_specific_settings.gecko.id == $id'
+
+      - name: Install Mozilla web-ext
+        run: npm install --global web-ext@10.5.0
+
+      - name: Submit listed version to AMO
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          # Approval may take longer than a CI job; AMO continues reviewing
+          # after a successful submission.
+          web-ext sign --channel=listed --source-dir=dist/extension \
+            --artifacts-dir=dist/signing --approval-timeout=0 --no-input
+
+      - name: Upload submitted source ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: markdown-collector-amo-submission
+          path: dist/markdown-collector-*.zip
+          if-no-files-found: error
+          retention-days: 30

@@ -94,6 +94,37 @@ See [Roadmap.md](Roadmap.md).
 
 Changelog is at the end of [Roadmap.md](Roadmap.md).
 
+
+## Automated Firefox releases
+
+GitHub Actions runs tests, builds an extension ZIP, and lints pull requests and
+pushes to `main`. When a push to `main` changes the version in
+`manifest.json`, the workflow automatically submits the new version to the
+**existing listed** [Mozilla Add-ons page](https://addons.mozilla.org/firefox/addon/markdown-collector/).
+Mozilla may still require review before the update becomes public.
+
+### One-time setup
+
+1. Create API credentials in the [AMO Developer Hub](https://addons.mozilla.org/developers/addon/api/key/).
+2. Add these **GitHub Actions repository secrets** in
+   **Settings → Secrets and variables → Actions**:
+   - `AMO_JWT_ISSUER`: Mozilla JWT issuer / API key
+   - `AMO_JWT_SECRET`: Mozilla JWT secret
+3. To submit the already-committed `1.4.4` release, open
+   **Actions → Firefox add-on CI/CD → Run workflow** once after adding the secrets.
+
+Subsequent releases require only a version bump in `manifest.json`, merged
+to `main`. The release job obtains the existing add-on ID from Mozilla's public
+API and inserts it into the **packaged copy** of the manifest; the repository
+manifest is unchanged. No ZIP creation or AMO upload is needed locally.
+
+To build locally without publishing: `bash zip.sh`. Output is
+`dist/markdown-collector-<version>.zip`.
+
+API credentials never belong in the repository. Pull-request workflows do not
+receive them. The workflow submits for review; it cannot bypass Mozilla's
+approval process or guarantee immediate publication.
+
 ## Contributing
 
 Contributions are welcome! Whether it's reporting bugs, suggesting features, or submitting pull requests, your help is appreciated.

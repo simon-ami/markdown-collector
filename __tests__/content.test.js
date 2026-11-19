@@ -21,18 +21,10 @@ global.DOMParser = jest.fn().mockImplementation(() => ({
   }),
 }));
 
-// Mock document
-Object.defineProperty(global, "document", {
-  value: {
-    title: "Test Page Title",
-    body: { innerHTML: "<p>Test body content</p>" },
-    documentElement: { outerHTML: "<html><body>Test page content</body></html>" },
-  },
-  writable: true,
-});
-
 describe("content script functionality", () => {
   beforeEach(() => {
+    document.title = "Test Page Title";
+    document.body.innerHTML = "<p>Test body content</p>";
     jest.clearAllMocks();
     browser.storage.local.get.mockResolvedValue({ enableCleanup: false, enableLLM: false });
   });
