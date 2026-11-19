@@ -5,73 +5,12 @@ import {
   showDiffModal,
 } from "../scripts/components/uiComponents.js";
 
-// Mock global DOM
-global.document = {
-  createElement: jest.fn((tag) => {
-    const element = {
-      tagName: tag.toUpperCase(),
-      textContent: "",
-      innerHTML: "",
-      className: "",
-      id: "",
-      style: {},
-      value: "",
-      checked: false,
-      type: "",
-      placeholder: "",
-      title: "",
-      addEventListener: jest.fn(),
-      appendChild: jest.fn(),
-      removeChild: jest.fn(),
-      querySelector: jest.fn(),
-      querySelectorAll: jest.fn(() => []),
-      click: jest.fn(),
-      focus: jest.fn(),
-      classList: {
-        add: jest.fn(),
-        remove: jest.fn(),
-        contains: jest.fn(() => false),
-      },
-      setAttribute: jest.fn(),
-      getAttribute: jest.fn(),
-    };
-
-    if (tag === "input") {
-      element.type = "text";
-    }
-
-    return element;
-  }),
-  body: {
-    appendChild: jest.fn(),
-    removeChild: jest.fn(),
-    style: {},
-  },
-  getElementById: jest.fn(),
-  querySelector: jest.fn(),
-  querySelectorAll: jest.fn(() => []),
-  createDocumentFragment: jest.fn(() => ({
-    appendChild: jest.fn(),
-  })),
-  createTextNode: jest.fn((text) => ({ textContent: text })),
-  documentElement: {
-    style: {
-      getPropertyValue: jest.fn(() => "#000000"),
-    },
-  },
-};
+// Use Jest's real JSDOM document; replacing it breaks JSDOM lifecycle.
 
 // Mock getComputedStyle
 global.getComputedStyle = jest.fn(() => ({
   getPropertyValue: jest.fn(() => "#000000"),
 }));
-
-// Mock clipboard API
-global.navigator = {
-  clipboard: {
-    writeText: jest.fn().mockResolvedValue(),
-  },
-};
 
 // Mock JSDiff
 global.Diff = {
@@ -84,6 +23,7 @@ global.Diff = {
 
 describe("uiComponents", () => {
   beforeEach(() => {
+    document.body.innerHTML = '';
     jest.clearAllMocks();
   });
 
