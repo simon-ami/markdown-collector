@@ -9,6 +9,7 @@ A **Firefox extension** that helps you save web pages as Markdown and manage the
   - `Alt+C`: Save, convert, and copy to clipboard
   - `Alt+M`: Open markdown collection
 - **AI-Powered Refinement:** Optional LLM integration to refine and structure content based on custom prompts
+  - LLM endpoints must use HTTPS; HTTP is allowed only for local loopback servers (`localhost`, `127.0.0.1`, `[::1]`). Redirects are blocked to protect API keys.
 - **Multi-Tab Processing:** Select multiple tabs (Ctrl+Click or Shift+Click) and process them:
   - Individual mode: Apply the same AI refinement to each page separately
   - Batch mode: Combine all selected pages into one document (Shift+Enter) and apply the same AI refinement to the combined content
