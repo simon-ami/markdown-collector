@@ -6,3 +6,6 @@ context-collector.zip
 node_modules/
 .vscode/
 .history/
+
+# Extension packages and staging
+/dist/
