@@ -3,6 +3,7 @@
  */
 
 import { jsonToMarkdown } from "./markdownUtils.js";
+import { validateLLMEndpoint } from "./endpointSecurity.js";
 
 /**
  * Process content with LLM refinement
@@ -200,8 +201,14 @@ async function callLLMAPI(
       },
     };
 
-    const response = await fetch(baseUrl, {
+    // Reject insecure endpoints before supplying API credentials.
+    const endpoint = validateLLMEndpoint(
+      baseUrl || "https://api.openai.com/v1/chat/completions"
+    );
+    const response = await fetch(endpoint, {
       method: "POST",
+      // A redirect must never forward credentials to another endpoint.
+      redirect: "error",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,

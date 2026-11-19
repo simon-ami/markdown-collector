@@ -16,6 +16,8 @@
  */
 
 
+import { validateLLMEndpoint } from "./endpointSecurity.js";
+
 document.addEventListener('DOMContentLoaded', () => {
   const cleanupToggle = document.getElementById('cleanup-toggle');
   const llmToggle = document.getElementById('llm-toggle');
@@ -41,6 +43,13 @@ document.addEventListener('DOMContentLoaded', () => {
       modelSelect.value = result.model || 'gpt-4o-mini';
     }
     baseUrlInput.value = result.baseUrl || DEFAULT_BASE_URL;
+    if (result.baseUrl) {
+      try {
+        validateLLMEndpoint(result.baseUrl);
+      } catch (error) {
+        baseUrlInput.setCustomValidity(error.message);
+      }
+    }
     updateToggleVisually(cleanupToggle);
     updateToggleVisually(llmToggle);
     subSettingsContainer.style.display = result.enableLLM ? 'block' : 'none';
@@ -90,6 +99,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   baseUrlInput.addEventListener('input', debounce(() => {
     const baseUrl = baseUrlInput.value.trim();
+
+    if (!baseUrl) {
+      baseUrlInput.setCustomValidity('');
+      chrome.storage.local.remove('baseUrl');
+      return;
+    }
+
+    try {
+      validateLLMEndpoint(baseUrl);
+      baseUrlInput.setCustomValidity('');
+    } catch (error) {
+      // Keep the entered URL visible; requests reject invalid endpoints.
+      baseUrlInput.setCustomValidity(error.message);
+      baseUrlInput.reportValidity();
+    }
+
     chrome.storage.local.set({ baseUrl }, () => {
       console.log('Base URL saved');
     });
@@ -97,6 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   resetBaseUrlButton.addEventListener('click', () => {
     baseUrlInput.value = DEFAULT_BASE_URL;
+    baseUrlInput.setCustomValidity('');
     chrome.storage.local.set({ baseUrl: DEFAULT_BASE_URL }, () => {
       console.log('Base URL reset to default');
     });
