@@ -367,6 +367,37 @@
           border-color: #ff9800;
         }
       }
+
+      /* API key storage policy */
+      .key-storage-setting {
+        margin: 12px 140px 8px 140px;
+        padding: 12px 11px 18px;
+        border-bottom: 1px solid var(--border-color);
+      }
+      .key-storage-heading { font-size: 18px; margin-bottom: 13px; }
+      .key-storage-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .key-storage-option {
+        display: flex; gap: 10px; align-items: flex-start; cursor: pointer;
+        padding: 13px 12px; border: 1px solid var(--border-color);
+        border-radius: 6px; background: var(--button-background);
+        font-size: 14px;
+      }
+      .key-storage-option:has(input:checked) { border-color: #e6b31c; }
+      .key-storage-option input { accent-color: #e6b31c; margin-top: 3px; }
+      .key-storage-option strong { display: block; font-size: 14px; }
+      .key-storage-option small { display: block; color: var(--text-color-light); margin-top: 5px; font-size: 12px; line-height: 1.45; }
+      .key-storage-option em { color: #d6b964; font-style: normal; font-size: 11px; }
+      .key-storage-disclosure {
+        padding: 11px 12px; margin: 12px 0 6px;
+        border: 1px solid #786330; border-radius: 5px;
+        background: rgba(165, 128, 30, 0.1);
+        color: var(--text-color-light); font-size: 12px; line-height: 1.5;
+      }
+      #api-key-storage-status { color: var(--text-color-light); font-size: 12px; margin: 8px 0 0; }
+      @media (max-width: 850px) {
+        .key-storage-setting { margin: 12px 10px; }
+        .key-storage-options { grid-template-columns: 1fr; }
+      }
     </style>
   </head>
   <body>
@@ -469,6 +500,27 @@
               />
             </div>
           </div>
+        </div>
+
+
+        <div class="key-storage-setting" id="api-key-storage-setting">
+          <div class="key-storage-heading">API key storage</div>
+          <div class="key-storage-options" role="radiogroup" aria-label="API key storage">
+            <label class="key-storage-option">
+              <input type="radio" name="api-key-storage-mode" value="session" />
+              <span><strong>Until Firefox closes <em>Recommended</em></strong>
+              <small>Stored for this browser session only. Enter the key again after restarting Firefox.</small></span>
+            </label>
+            <label class="key-storage-option">
+              <input type="radio" name="api-key-storage-mode" value="persistent" />
+              <span><strong>Remember on this device</strong>
+              <small>Keep the key available automatically after browser restarts.</small></span>
+            </label>
+          </div>
+          <p class="key-storage-disclosure"><strong>About persistent storage:</strong>
+            “Remember on this device” saves your API key unencrypted in the Firefox profile.
+            Anyone with access to those files may be able to read it.</p>
+          <p id="api-key-storage-status" role="status" aria-live="polite"></p>
         </div>
 
         <div class="setting" id="model-setting">
