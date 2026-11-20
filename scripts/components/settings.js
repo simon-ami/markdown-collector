@@ -17,12 +17,27 @@
 
 
 import { validateLLMEndpoint } from "./endpointSecurity.js";
+import {
+  getApiKey, getApiKeyStorageMode, saveApiKey, setApiKeyStorageMode,
+} from "./apiKeyStorage.js";
 
 document.addEventListener('DOMContentLoaded', () => {
   const cleanupToggle = document.getElementById('cleanup-toggle');
   const llmToggle = document.getElementById('llm-toggle');
   const llmWarning = document.getElementById('llm-warning');
   const apiKeyInput = document.getElementById('api-key');
+  const keyStorageChoices = document.querySelectorAll('input[name="api-key-storage-mode"]');
+  const apiKeyStatus = document.getElementById('api-key-storage-status');
+  let apiKeySaveTimer;
+  let apiKeyWriteQueue = Promise.resolve();
+
+  function queueKeyWrite(operation) {
+    apiKeyWriteQueue = apiKeyWriteQueue.catch(() => {}).then(operation);
+    return apiKeyWriteQueue.catch(error => {
+      apiKeyStatus.textContent = 'Unable to save API key: ' + error.message;
+      console.error('Unable to save API key:', error.message);
+    });
+  }
   const modelSelect = document.getElementById('model-select');
   const customModel = document.getElementById('custom-model');
   const baseUrlInput = document.getElementById('base-url');
@@ -32,10 +47,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const DEFAULT_BASE_URL = 'https://api.openai.com/v1/chat/completions';
 
   // Initialize settings
-  chrome.storage.local.get(['enableCleanup', 'enableLLM', 'apiKey', 'model', 'baseUrl'], (result) => {
+  chrome.storage.local.get(['enableCleanup', 'enableLLM', 'model', 'baseUrl'], async (result) => {
     cleanupToggle.checked = result.enableCleanup || false;
     llmToggle.checked = result.enableLLM || false;
-    apiKeyInput.value = result.apiKey || '';
+    const storageMode = await getApiKeyStorageMode();
+    apiKeyInput.value = await getApiKey();
+    for (const choice of keyStorageChoices) {
+      choice.checked = choice.value === storageMode;
+    }
+    apiKeyStatus.textContent = apiKeyInput.value
+      ? 'API key available'
+      : 'No API key saved for this session';
     if (result.model && !['gpt-4o-mini', 'gpt-4o'].includes(result.model)) {
       modelSelect.value = 'custom';
       customModel.value = result.model;
@@ -83,19 +105,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
   customModel.addEventListener('input', saveModel);
 
-  apiKeyInput.addEventListener('input', debounce(() => {
-    const apiKey = apiKeyInput.value.trim();
-    if (apiKey) {  // Only save if the API key is not empty
-      chrome.storage.local.set({ apiKey }, () => {
-        console.log('API Key saved');
+  apiKeyInput.addEventListener('input', () => {
+    clearTimeout(apiKeySaveTimer);
+    const key = apiKeyInput.value.trim();
+    apiKeySaveTimer = setTimeout(() => {
+      queueKeyWrite(async () => {
+        await saveApiKey(key);
+        apiKeyStatus.textContent = key ? 'API key saved' : 'API key removed';
       });
-    } else {
-      // If the API key is empty, remove it from storage
-      chrome.storage.local.remove('apiKey', () => {
-        console.log('Empty API Key removed from storage');
+    }, 500);
+  });
+
+  for (const choice of keyStorageChoices) {
+    choice.addEventListener('change', () => {
+      if (!choice.checked) return;
+      clearTimeout(apiKeySaveTimer);
+      const selectedMode = choice.value;
+      const key = apiKeyInput.value.trim();
+      queueKeyWrite(async () => {
+        await setApiKeyStorageMode(selectedMode, key);
+        apiKeyStatus.textContent = selectedMode === 'session'
+          ? 'Key stored until Firefox closes'
+          : 'Key saved on this device (unencrypted)';
       });
-    }
-  }, 500));
+    });
+  }
 
   baseUrlInput.addEventListener('input', debounce(() => {
     const baseUrl = baseUrlInput.value.trim();

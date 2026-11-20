@@ -20,6 +20,17 @@ A **Firefox extension** that helps you save web pages as Markdown and manage the
   - Update and review changes with diff view
 - **Smart Content Cleanup:** Optional Readability integration to extract main content and remove clutter
 
+## API key storage
+
+New installations keep the LLM API key in Firefox's memory-only session storage
+by default (Firefox 115+). The key must be entered again after restarting the
+browser. Alternatively, users can choose **Remember on this device** in
+Settings. Persistent mode stores the key unencrypted in the Firefox profile;
+anyone with access to those files may be able to read it.
+
+Existing persisted API keys remain in persistent mode until the user opts into
+session-only storage. Changing modes moves the key and deletes the old copy.
+
 ## Installation
 
 **Get it from Firefox Add-ons: [Markdown Collector](https://addons.mozilla.org/de/firefox/addon/markdown-collector/)**

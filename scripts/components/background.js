@@ -17,6 +17,7 @@
 
 import { getSelectedTabs } from "./tabManager.js";
 import { refineMDWithLLM, processBatchContent } from "./llmProcessor.js";
+import { getApiKey } from "./apiKeyStorage.js";
 
 // Store for pending refinement
 let pendingRefinement = null;
@@ -158,11 +159,10 @@ async function saveCurrentTabUrl() {
     const result = await browser.storage.local.get([
       "markdownData",
       "enableLLM",
-      "apiKey",
     ]);
     const markdownData = result.markdownData || [];
     const enableLLM = result.enableLLM || false;
-    const apiKey = result.apiKey;
+    const apiKey = await getApiKey();
 
     console.log("Background script settings check", {
       enableLLM,
@@ -685,11 +685,10 @@ async function copyAsMarkdown() {
     // Get all required storage data at the start
     const result = await browser.storage.local.get([
       "enableLLM",
-      "apiKey",
       "markdownData",
     ]);
     const enableLLM = result.enableLLM || false;
-    const apiKey = result.apiKey;
+    const apiKey = await getApiKey();
     let markdownData = result.markdownData || [];
 
     console.log("🔍 copyAsMarkdown settings:", {
@@ -867,8 +866,8 @@ async function processRefinementFromPopup(
       return;
     }
 
-    const result = await browser.storage.local.get(["apiKey", "markdownData"]);
-    const apiKey = result.apiKey;
+    const result = await browser.storage.local.get(["markdownData"]);
+    const apiKey = await getApiKey();
     const markdownData = result.markdownData || [];
 
     if (!apiKey) {
